@@ -53,6 +53,7 @@ function setup_incompressible_solvers(
 
     (; U, p, Uf, pf) = model.momentum
     mesh = model.domain
+    mrf = model.mrf
 
     @info "Pre-allocating fields..."
     
@@ -68,7 +69,7 @@ function setup_incompressible_solvers(
     U_eqn = (
         Time{schemes.U.time}(U)
         + Divergence{schemes.U.divergence}(mdotf, U) 
-        - Laplacian{schemes.U.laplacian}(nueff, U) 
+        - Laplacian{schemes.U.laplacian}(nueff, U)
         == 
         - Source(∇p.result)
     ) → VectorEquation(U, boundaries.U)
@@ -114,6 +115,7 @@ function SIMPLE(
     (; U, p, Uf, pf) = model.momentum
     (; nu) = model.fluid
     mesh = model.domain
+    mrf = model.mrf
     (; solvers, schemes, runtime, hardware, boundaries, postprocess) = config
     (; iterations, write_interval,dt) = runtime
     (; backend) = hardware
@@ -165,6 +167,8 @@ function SIMPLE(
     update_nueff!(nueff, nu, model.turbulence, config)
 
     @info "Starting SIMPLE loops..."
+    omega = mrf.ω
+    @info "You entered an omega value of : " omega
 
     progress = Progress(iterations; dt=1.0, showspeed=true)
 
