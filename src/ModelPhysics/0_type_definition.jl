@@ -31,7 +31,7 @@ XCALibre's parametric Physics type for user-level API. Also used to dispatch flo
 
 """
 
-struct Physics{T,F,SO,M,Tu,E,D,BI,OMEGA}
+struct Physics{T,F,SO,M,Tu,E,D,BI,omega,S,x0}
     time::T
     fluid::F
     solid::SO
@@ -40,7 +40,9 @@ struct Physics{T,F,SO,M,Tu,E,D,BI,OMEGA}
     energy::E
     domain::D
     boundary_info::BI
-    OMEGA::OMEGA
+    omega::omega
+    S::S
+    x0::x0
 end 
 Adapt.@adapt_structure Physics
 
@@ -119,7 +121,7 @@ end
 - `domain` - provides the mesh to used (must be adapted to the target backend device)
 
 """
-Physics(; time, fluid=nothing, solid=nothing, turbulence=nothing, energy, domain, OMEGA=nothing) = begin
+Physics(; time, fluid=nothing, solid=nothing, turbulence=nothing, energy, domain, omega=nothing, S=nothing, x0=nothing) = begin
     # NOTE: this function will be changed if/when a "medium" keyword is introduced. This will get rid of this ugly if statements! 
     momentum = Momentum(domain)
 
@@ -146,7 +148,9 @@ Physics(; time, fluid=nothing, solid=nothing, turbulence=nothing, energy, domain
         energy,
         domain, 
         boundary_info,
-        OMEGA
+        omega,
+        S,
+        x0
     )
 end
 

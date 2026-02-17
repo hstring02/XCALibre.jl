@@ -1,25 +1,16 @@
 using Plots
 using XCALibre
 using LinearAlgebra
-# using CUDA
 
-# mesh_file = "unv_sample_meshes/backwardFacingStep_5mm.unv"
-# backwardFacingStep_2mm, 5mm or 10mm
-grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-grid = "backwardFacingStep_10mm.unv"
-mesh_file = joinpath(grids_dir, grid)
-
+mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\03_SRF_Testing\01_Meshing\Circle_In_Square_V3_100mm.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
-# backend = CUDABackend(); workgroup = 32
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
-
 hardware = Hardware(backend=backend, workgroup=workgroup)
 mesh_dev = adapt(backend, mesh)
 
 nu = 1e-3
-u_mag = 4 # 5mm mesh
-# u_mag = 3.5 # 2mm mesh
+u_mag = 0.0
 velocity = [u_mag, 0.0, 0.0]
 Tu = 0.05
 nuR = 100
@@ -28,19 +19,12 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
-# MRF
-omega = 6
+# SRF
+omega = 60
+rpm = omega*(30/pi())
 x0 = [0,0,0] # Centre of rotation
 x1 = [0,0,3] # Arbitrary point along rotation axis
 S = (x1 - x0)./norm((x1 - x0))
-OMEGA = S.*omega
-
-nCells = length(mesh.cells)
-r = []
-for i in 1:nCells
-    vector = mesh.cells[i].centre-x0
-    push!(r,vector)
-end
 
 model = Physics(
     time = Steady(),
@@ -48,41 +32,34 @@ model = Physics(
     turbulence = RANS{KOmega}(),
     energy = Energy{Isothermal}(),
     domain = mesh_dev,
-    OMEGA = OMEGA
+    omega = omega,
+    S = S,
+    x0 = x0
     )
 
 BCs = assign(
     region = mesh_dev,
     (
         U = [
-            Dirichlet(:inlet, velocity),
-            Extrapolated(:outlet),
-            Wall(:wall, [0.0, 0.0, 0.0]),
-            Wall(:top, [0.0, 0.0, 0.0])
+            RotatingWall(:Boundary, rpm=rpm, centre=x0, axis=SVector),
+            Wall(:Walls, [0.0, 0.0, 0.0])
         ],
         p = [
-            Neumann(:inlet, 0.0),
-            Dirichlet(:outlet, 0.0),
-            Wall(:wall),
-            Wall(:top)
+            # Neumann(:Boundary, 0.0),
+            Dirichlet(:Boundary, 0.0),
+            Wall(:Walls)
         ],
         k = [
-            Dirichlet(:inlet, k_inlet),
-            Extrapolated(:outlet),
-            KWallFunction(:wall),
-            KWallFunction(:top)
+            Dirichlet(:Boundary, k_inlet),
+            KWallFunction(:Walls)
         ],
         omega = [
-            Dirichlet(:inlet, ω_inlet),
-            Extrapolated(:outlet),
-            OmegaWallFunction(:wall),
-            OmegaWallFunction(:top)
+            Dirichlet(:Boundary, ω_inlet),
+            OmegaWallFunction(:Walls)
         ],
         nut = [
-            Dirichlet(:inlet, νt_inlet),
-            Extrapolated(:outlet),
-            NutWallFunction(:wall), 
-            NutWallFunction(:top)
+            Dirichlet(:Boundary, νt_inlet),
+            NutWallFunction(:Walls)
         ]
     )
 )
@@ -129,7 +106,7 @@ solvers = (
     )
 )
 
-runtime = Runtime(iterations=3000, write_interval=100, time_step=1)
+runtime = Runtime(iterations=3000, write_interval=300, time_step=1)
 # runtime = Runtime(iterations=2, write_interval=-1, time_step=1)
 
 config = Configuration(

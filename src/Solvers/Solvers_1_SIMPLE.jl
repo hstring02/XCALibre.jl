@@ -63,6 +63,7 @@ function setup_incompressible_solvers(
     nueff = FaceScalarField(mesh)
     divHv = ScalarField(mesh)
     omegaU = VectorField(mesh)
+    omegaR = VectorField(mesh)
 
     @info "Defining models..."
 
@@ -73,6 +74,7 @@ function setup_incompressible_solvers(
         == 
         - Source(∇p.result) # MRF video has a missing density term, does it need removing ??
         - Source(omegaU)
+        - Source(omegaR)
     ) → VectorEquation(U, boundaries.U)
 
     p_eqn = (
@@ -126,6 +128,7 @@ function SIMPLE(
     mdotf = get_flux(U_eqn, 2)
     nueff = get_flux(U_eqn, 3)
     omegaU = get_source(U_eqn, 2)
+    omegaR = get_source(U_eqn, 3)
     rDf = get_flux(p_eqn, 1)
     divHv = get_source(p_eqn, 1)
 
@@ -177,10 +180,15 @@ function SIMPLE(
 
     # println(Ux)      # Why is this here ???
 
+    # user provided rotation speed (converted to rad/s), centre of rotation and the axis
+    omega = model.omega
+    rotaxis = model.S
+    x0 = model.x0
+
     for iteration ∈ 1:iterations
         time = iteration
 
-        omegaU = CROSS(OMEGA,U)
+        update_srf_sources!(omegaU, omegaR, U, x0, rotaxis, omega, config)
 
         rx, ry, rz = solve_equation!(U_eqn, U, boundaries.U, solvers.U, xdir, ydir, zdir, config)
         
@@ -260,6 +268,7 @@ function SIMPLE(
             finish!(progress)
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
+                make_absolute_velocity!(U,  x0, rotaxis, omega, config)
                 save_output(model, outputWriter, iteration, time, config)
             end
             break
@@ -279,6 +288,7 @@ function SIMPLE(
         runtime_postprocessing!(postprocess,iteration,iterations)
         
         if iteration%write_interval + signbit(write_interval) == 0      
+            make_absolute_velocity!(U,  x0, rotaxis, omega, config)
             save_output(model, outputWriter, iteration, time, config)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
@@ -404,11 +414,44 @@ end
     end
 end
 
-function CROSS(OMEGA,U)
+
+function update_srf_sources!(omegaU, omegaR, U, x0, rotaxis, omega, config)
+    (; hardware) = config
+    (; backend, workgroup) = hardware
     mesh = U.mesh
-    array = VectorField(mesh)
-    for i in 1:length(U)
-        array(i) = cross(OMEGA,U[i])
-    end
-    return array
+    cells = mesh.cells 
+
+    ndrange = length(cells)
+    kernel! = _update_srf_sources!(_setup(backend, workgroup, ndrange)...)
+    kernel!(omegaU, omegaR, U, x0, rotaxis, omega, cells)
+end
+
+@kernel function _update_srf_sources!(omegaU, omegaR, U, x0, rotaxis, omega, cells)
+    cID = @index(Global)
+
+    Omega = omega*rotaxis
+    r = cells[cID].centre - x0
+    omegaR[cID] = Omega × Omega × r
+    omegaU[cID] = 2*Omega × U[cID]
+end
+
+
+function make_absolute_velocity!(U,  x0, rotaxis, omega, config)
+    (; hardware) = config
+    (; backend, workgroup) = hardware
+    mesh = U.mesh
+    cells = mesh.cells 
+
+    ndrange = length(cells)
+    kernel! = _make_absolute_velocity!(_setup(backend, workgroup, ndrange)...)
+    kernel!(U,  x0, rotaxis, omega, cells)
+
+end
+
+@kernel function _make_absolute_velocity!(U,  x0, rotaxis, omega, cells)
+    cID = @index(Global)
+
+    Omega = omega*rotaxis
+    r = cells[cID].centre - x0
+    U[cID] = U[cID] + Omega × r
 end
