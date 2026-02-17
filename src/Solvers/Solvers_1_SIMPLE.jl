@@ -121,8 +121,6 @@ function SIMPLE(
     (; solvers, schemes, runtime, hardware, boundaries, postprocess) = config
     (; iterations, write_interval,dt) = runtime
     (; backend) = hardware
-
-    OMEGA = model.OMEGA
     
     postprocess = convert_time_to_iterations(postprocess,model,dt,iterations)
     mdotf = get_flux(U_eqn, 2)
@@ -169,7 +167,6 @@ function SIMPLE(
     grad!(∇p, pf, p, boundaries.p, time, config)
     limit_gradient!(schemes.p.limiter, ∇p, p, config)
 
-
     update_nueff!(nueff, nu, model.turbulence, config)
 
     @info "Starting SIMPLE loops..."
@@ -178,12 +175,13 @@ function SIMPLE(
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
-    # println(Ux)      # Why is this here ???
-
     # user provided rotation speed (converted to rad/s), centre of rotation and the axis
-    omega = model.omega
-    rotaxis = model.S
-    x0 = model.x0
+    # omega = model.omega
+    omega = 3
+    #rotaxis = model.S
+    rotaxis = SVector{3}([0.0,0.0,1.0])
+    # x0 = model.x0
+    x0 = SVector{3}([0.0,0.0,0.0])
 
     for iteration ∈ 1:iterations
         time = iteration
@@ -288,7 +286,7 @@ function SIMPLE(
         runtime_postprocessing!(postprocess,iteration,iterations)
         
         if iteration%write_interval + signbit(write_interval) == 0      
-            make_absolute_velocity!(U,  x0, rotaxis, omega, config)
+            # make_absolute_velocity!(U,  x0, rotaxis, omega, config)
             save_output(model, outputWriter, iteration, time, config)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
