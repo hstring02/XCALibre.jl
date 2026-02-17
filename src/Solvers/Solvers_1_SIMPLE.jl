@@ -53,8 +53,6 @@ function setup_incompressible_solvers(
 
     (; U, p, Uf, pf) = model.momentum
     mesh = model.domain
-    mrf = model.mrf
-    omega = mrf.ω
 
     @info "Pre-allocating fields..."
     
@@ -118,10 +116,11 @@ function SIMPLE(
     (; U, p, Uf, pf) = model.momentum
     (; nu) = model.fluid
     mesh = model.domain
-    mrf = model.mrf
     (; solvers, schemes, runtime, hardware, boundaries, postprocess) = config
     (; iterations, write_interval,dt) = runtime
     (; backend) = hardware
+
+    OMEGA = model.OMEGA
     
     postprocess = convert_time_to_iterations(postprocess,model,dt,iterations)
     mdotf = get_flux(U_eqn, 2)
@@ -131,7 +130,7 @@ function SIMPLE(
     divHv = get_source(p_eqn, 1)
 
     outputWriter = initialise_writer(output, model.domain)
-    
+
     @info "Allocating working memory..."
 
     # Define aux fields 
@@ -176,10 +175,12 @@ function SIMPLE(
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
-    println(Ux)
+    # println(Ux)      # Why is this here ???
 
     for iteration ∈ 1:iterations
         time = iteration
+
+        omegaU = CROSS(OMEGA,U)
 
         rx, ry, rz = solve_equation!(U_eqn, U, boundaries.U, solvers.U, xdir, ydir, zdir, config)
         
@@ -401,4 +402,13 @@ end
         face_grad = area*(p2 - p1)/delta # best option so far!
         mdotf[fID] -= face_grad*rDf[fID]
     end
+end
+
+function CROSS(OMEGA,U)
+    mesh = U.mesh
+    array = VectorField(mesh)
+    for i in 1:length(U)
+        array(i) = cross(OMEGA,U[i])
+    end
+    return array
 end

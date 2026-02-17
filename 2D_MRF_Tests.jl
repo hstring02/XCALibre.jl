@@ -30,8 +30,8 @@ Re = velocity[1]*0.1/nu
 
 # MRF
 omega = 6
-x0 = [1,2,0] # Centre of rotation
-x1 = [1,2,3] # Arbitrary point along rotation axis
+x0 = [0,0,0] # Centre of rotation
+x1 = [0,0,3] # Arbitrary point along rotation axis
 S = (x1 - x0)./norm((x1 - x0))
 OMEGA = S.*omega
 
@@ -144,10 +144,4 @@ initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, νt_inlet)
 
-
-
 residuals = run!(model, config) # 145 iterations
-
-Reff = stress_tensor(model.momentum.U, nu, model.turbulence.nut)
-Fp = pressure_force(:wall, model.momentum.p, 1.25)
-Fv = viscous_force(:wall, model.momentum.U, 1.25, nu, model.turbulence.nut)
