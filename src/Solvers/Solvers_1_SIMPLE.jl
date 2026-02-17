@@ -54,15 +54,17 @@ function setup_incompressible_solvers(
     (; U, p, Uf, pf) = model.momentum
     mesh = model.domain
     mrf = model.mrf
+    omega = mrf.ω
 
     @info "Pre-allocating fields..."
     
     ∇p = Grad{schemes.p.gradient}(p)
-    mdotf = FaceScalarField(mesh)
+    mdotf = FaceScalarField(mesh) # WHy is this a scalar field if it is meant to be representing the U term ?
     rDf = FaceScalarField(mesh)
     initialise!(rDf, 1.0)
     nueff = FaceScalarField(mesh)
     divHv = ScalarField(mesh)
+    omegaU = VectorField(mesh)
 
     @info "Defining models..."
 
@@ -71,7 +73,8 @@ function setup_incompressible_solvers(
         + Divergence{schemes.U.divergence}(mdotf, U) 
         - Laplacian{schemes.U.laplacian}(nueff, U)
         == 
-        - Source(∇p.result)
+        - Source(∇p.result) # MRF video has a missing density term, does it need removing ??
+        - Source(omegaU)
     ) → VectorEquation(U, boundaries.U)
 
     p_eqn = (
@@ -123,6 +126,7 @@ function SIMPLE(
     postprocess = convert_time_to_iterations(postprocess,model,dt,iterations)
     mdotf = get_flux(U_eqn, 2)
     nueff = get_flux(U_eqn, 3)
+    omegaU = get_source(U_eqn, 2)
     rDf = get_flux(p_eqn, 1)
     divHv = get_source(p_eqn, 1)
 
@@ -167,12 +171,12 @@ function SIMPLE(
     update_nueff!(nueff, nu, model.turbulence, config)
 
     @info "Starting SIMPLE loops..."
-    omega = mrf.ω
-    @info "You entered an omega value of : " omega
 
     progress = Progress(iterations; dt=1.0, showspeed=true)
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
+
+    println(Ux)
 
     for iteration ∈ 1:iterations
         time = iteration

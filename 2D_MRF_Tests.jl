@@ -1,5 +1,6 @@
 using Plots
 using XCALibre
+using LinearAlgebra
 # using CUDA
 
 # mesh_file = "unv_sample_meshes/backwardFacingStep_5mm.unv"
@@ -17,7 +18,7 @@ hardware = Hardware(backend=backend, workgroup=workgroup)
 mesh_dev = adapt(backend, mesh)
 
 nu = 1e-3
-u_mag = 1.5 # 5mm mesh
+u_mag = 4 # 5mm mesh
 # u_mag = 3.5 # 2mm mesh
 velocity = [u_mag, 0.0, 0.0]
 Tu = 0.05
@@ -27,11 +28,19 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
-mrf = RotatingFrame(
-    ω = 6,
-    x0 = [0,0,0],
-    x1 = [0,0,1]
-)
+# MRF
+omega = 6
+x0 = [1,2,0] # Centre of rotation
+x1 = [1,2,3] # Arbitrary point along rotation axis
+S = (x1 - x0)./norm((x1 - x0))
+OMEGA = S.*omega
+
+nCells = length(mesh.cells)
+r = []
+for i in 1:nCells
+    vector = mesh.cells[i].centre-x0
+    push!(r,vector)
+end
 
 model = Physics(
     time = Steady(),
@@ -39,7 +48,7 @@ model = Physics(
     turbulence = RANS{KOmega}(),
     energy = Energy{Isothermal}(),
     domain = mesh_dev,
-    mrf = mrf
+    OMEGA = OMEGA
     )
 
 BCs = assign(
@@ -135,14 +144,10 @@ initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, νt_inlet)
 
+
+
 residuals = run!(model, config) # 145 iterations
 
 Reff = stress_tensor(model.momentum.U, nu, model.turbulence.nut)
 Fp = pressure_force(:wall, model.momentum.p, 1.25)
 Fv = viscous_force(:wall, model.momentum.U, 1.25, nu, model.turbulence.nut)
-
-
-# plot(; xlims=(0,494))
-# plot!(1:length(Rx), Rx, yscale=:log10, label="Ux")
-# plot!(1:length(Ry), Ry, yscale=:log10, label="Uy")
-# plot!(1:length(Rp), Rp, yscale=:log10, label="p")
