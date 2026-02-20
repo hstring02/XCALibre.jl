@@ -176,8 +176,8 @@ function SIMPLE(
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
     # user provided rotation speed (converted to rad/s), centre of rotation and the axis
-    # omega = model.omega
-    omega = 3
+    omega = model.omega
+    #omega = 30
     #rotaxis = model.S
     rotaxis = SVector{3}([0.0,0.0,1.0])
     # x0 = model.x0

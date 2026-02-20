@@ -19,7 +19,7 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 Re = velocity[1]*0.1/nu
 
 # SRF
-omega = 5.0
+omega = 50.0
 x0 = [0.0, 0.0, 0.0] # Centre of rotation
 x1 = [0.0, 0.0, 3.0] # Arbitrary point along rotation axis
 S = (x1 - x0)./norm((x1 - x0))
@@ -39,7 +39,7 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            RotatingWall(:Boundary, rpm=omega*(30/pi), centre=x0, axis=S),
+            RotatingWall(:Boundary, rpm=-omega*(30/pi), centre=x0, axis=S),
             Wall(:Walls, [0.0, 0.0, 0.0])
         ],
         p = [
