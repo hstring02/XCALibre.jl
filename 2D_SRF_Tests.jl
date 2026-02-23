@@ -1,7 +1,7 @@
 using XCALibre
 using LinearAlgebra
 
-mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\03_SRF_Testing\01_Meshing\01_SpinningSquare\Square_In_Circle_V3_100mm.unv")
+mesh_file = (raw"c:\Users\goodm\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\03_SRF_Testing\01_Meshing\01_SpinningSquare\Square_In_Circle_V3_100mm.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
@@ -40,7 +40,7 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            RotatingWall(:Boundary, rpm=0, centre=x0, axis=S),
+            RotatingWall(:Boundary, rpm=rpm, centre=x0, axis=S),
             Wall(:Walls, [0.0, 0.0, 0.0])
         ],
         p = [
@@ -121,3 +121,14 @@ initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, νt_inlet)
 
 residuals = run!(model, config) # 145 iterations
+
+
+# Custom Output Functions
+mesh_name = get_mesh_name(mesh_file)
+velocity_name = string("velocity_",u_mag)*'_'
+omega_name = string("omega_",omega)*'_'
+script_name = string(@__FILE__)
+output_dir = mesh_name * omega_name
+pattern = "vtk"
+# pattern = "foam"
+output_directory(output_dir, script_name)
