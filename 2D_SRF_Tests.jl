@@ -1,7 +1,7 @@
 using XCALibre
 using LinearAlgebra
 
-mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\03_SRF_Testing\01_Meshing\Square_In_Circle_V3_100mm.unv")
+mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\03_SRF_Testing\01_Meshing\01_SpinningSquare\Square_In_Circle_V3_100mm.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
@@ -20,6 +20,7 @@ Re = velocity[1]*0.1/nu
 
 # SRF
 omega = 50.0
+rpm=-omega*(30/pi)
 x0 = [0.0, 0.0, 0.0] # Centre of rotation
 x1 = [0.0, 0.0, 3.0] # Arbitrary point along rotation axis
 S = (x1 - x0)./norm((x1 - x0))
@@ -39,7 +40,7 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            RotatingWall(:Boundary, rpm=-omega*(30/pi), centre=x0, axis=S),
+            RotatingWall(:Boundary, rpm=0, centre=x0, axis=S),
             Wall(:Walls, [0.0, 0.0, 0.0])
         ],
         p = [

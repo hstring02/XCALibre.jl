@@ -443,6 +443,7 @@ function make_absolute_velocity!(U,  x0, rotaxis, omega, config)
     ndrange = length(cells)
     kernel! = _make_absolute_velocity!(_setup(backend, workgroup, ndrange)...)
     kernel!(U,  x0, rotaxis, omega, cells)
+    println("Made velocity absolute")
 
 end
 
