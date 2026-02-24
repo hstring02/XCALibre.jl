@@ -21,9 +21,9 @@ Re = velocity[1]*0.1/nu
 # SRF
 omega = 50.0
 rpm=-omega*(30/pi)
-x0 = [0.0, 0.0, 0.0] # Centre of rotation
-x1 = [0.0, 0.0, 3.0] # Arbitrary point along rotation axis
-S = (x1 - x0)./norm((x1 - x0))
+x0 = [0.0, 0.0, 0.0] # Currently hard coded in solver 
+x1 = [0.0, 0.0, 3.0] # Currently hard coded in solver 
+S = (x1 - x0)./norm((x1 - x0))    # Currently hard coded in solver 
 
 model = Physics(
     time = Steady(),
@@ -40,25 +40,25 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            RotatingWall(:Boundary, rpm=rpm, centre=x0, axis=S),
-            Wall(:Walls, [0.0, 0.0, 0.0])
+            RotatingWall(:boundary, rpm=rpm, centre=x0, axis=S),
+            Wall(:walls, [0.0, 0.0, 0.0])
         ],
         p = [
             # Neumann(:Boundary, 0.0),
-            Dirichlet(:Boundary, 0.0),
-            Wall(:Walls)
+            Dirichlet(:boundary, 0.0),
+            Wall(:walls)
         ],
         k = [
-            Dirichlet(:Boundary, k_inlet),
-            KWallFunction(:Walls)
+            Dirichlet(:boundary, k_inlet),
+            KWallFunction(:walls)
         ],
         omega = [
-            Dirichlet(:Boundary, ω_inlet),
-            OmegaWallFunction(:Walls)
+            Dirichlet(:boundary, ω_inlet),
+            OmegaWallFunction(:walls)
         ],
         nut = [
-            Dirichlet(:Boundary, νt_inlet),
-            NutWallFunction(:Walls)
+            Dirichlet(:boundary, νt_inlet),
+            NutWallFunction(:walls)
         ]
     )
 )

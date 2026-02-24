@@ -74,7 +74,6 @@ function setup_incompressible_solvers(
         == 
         - Source(∇p.result) # MRF video has a missing density term, does it need removing ??
         - Source(omegaU)
-        - Source(omegaR)
     ) → VectorEquation(U, boundaries.U)
 
     p_eqn = (
@@ -126,7 +125,6 @@ function SIMPLE(
     mdotf = get_flux(U_eqn, 2)
     nueff = get_flux(U_eqn, 3)
     omegaU = get_source(U_eqn, 2)
-    omegaR = get_source(U_eqn, 3)
     rDf = get_flux(p_eqn, 1)
     divHv = get_source(p_eqn, 1)
 
@@ -175,18 +173,15 @@ function SIMPLE(
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
-    # user provided rotation speed (converted to rad/s), centre of rotation and the axis
+
     omega = model.omega
-    #omega = 30
-    #rotaxis = model.S
     rotaxis = SVector{3}([0.0,0.0,1.0])
-    # x0 = model.x0
     x0 = SVector{3}([0.0,0.0,0.0])
 
     for iteration ∈ 1:iterations
         time = iteration
 
-        update_srf_sources!(omegaU, omegaR, U, x0, rotaxis, omega, config)
+        update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
 
         rx, ry, rz = solve_equation!(U_eqn, U, boundaries.U, solvers.U, xdir, ydir, zdir, config)
         
@@ -204,7 +199,8 @@ function SIMPLE(
         # div!(divHv, Uf, config) 
 
         # new approach
-        flux!(mdotf, Uf, config)
+        # flux!(mdotf, Uf, config)
+        flux_mrf!(mdotf, Uf, config, x0, rotaxis, omega)
         div!(divHv, mdotf, config)
         
         # Pressure calculations
@@ -266,7 +262,6 @@ function SIMPLE(
             finish!(progress)
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
-                make_absolute_velocity!(U,  x0, rotaxis, omega, config)
                 save_output(model, outputWriter, iteration, time, config)
             end
             break
@@ -286,7 +281,6 @@ function SIMPLE(
         runtime_postprocessing!(postprocess,iteration,iterations)
         
         if iteration%write_interval + signbit(write_interval) == 0      
-            # make_absolute_velocity!(U,  x0, rotaxis, omega, config)
             save_output(model, outputWriter, iteration, time, config)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
@@ -378,79 +372,50 @@ function correction_weight(cells, faces, fi)
     return w, df
 end
 
-### TEMP LOCATION FOR PROTOTYPING
+# MRF functions ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function correct_mass_flux(mdotf, p, rDf, config)
-    # sngrad = FaceScalarField(mesh)
-    (; faces, cells, boundary_cellsID) = mdotf.mesh
+function update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
+    (; hardware) = config
+    (; backend, workgroup) = hardware
+    mesh = U.mesh
+    cells = mesh.cells 
+
+    ndrange = length(cells)
+    kernel! = _update_mrf_sources!(_setup(backend, workgroup, ndrange)...)
+    kernel!(omegaU, U, x0, rotaxis, omega, cells)
+end
+
+@kernel function _update_mrf_sources!(omegaU, U, x0, rotaxis, omega, cells)
+    cID = @index(Global)
+
+    Omega = omega*rotaxis
+    omegaU[cID] = Omega × U[cID]
+end
+
+
+function flux_mrf!(phif::FS, psif::FV, config, x0, rotaxis, omega) where {FS<:FaceScalarField,FV<:FaceVectorField}
     (; hardware) = config
     (; backend, workgroup) = hardware
 
-    n_faces = length(faces)
-    n_bfaces = length(boundary_cellsID)
-    n_ifaces = n_faces - n_bfaces
-
-    ndrange = n_ifaces # length(n_ifaces) was a BUG! should be n_ifaces only!!!!
-    kernel! = _correct_mass_flux(_setup(backend, workgroup, ndrange)...)
-    kernel!(mdotf, p, rDf, faces, cells, n_bfaces)
-    # KernelAbstractions.synchronize(backend)
+    ndrange = length(phif)
+    kernel! = _flux_mrf!(_setup(backend, workgroup, ndrange)...)
+    kernel!(phif, psif, x0, rotaxis, omega)
+    # # KernelAbstractions.synchronize(backend)
 end
 
-@kernel function _correct_mass_flux(mdotf, p, rDf, faces, cells, n_bfaces)
+@kernel function _flux_mrf!(phif, psif, x0, rotaxis, omega)
     i = @index(Global)
-    fID = i + n_bfaces
 
-    @inbounds begin 
-        face = faces[fID]
-        (; area, normal, ownerCells, delta) = face 
-        cID1 = ownerCells[1]
-        cID2 = ownerCells[2]
-        p1 = p[cID1]
-        p2 = p[cID2]
-        face_grad = area*(p2 - p1)/delta # best option so far!
-        mdotf[fID] -= face_grad*rDf[fID]
+    @uniform begin
+        (; mesh, values) = phif
+        (; faces) = mesh
     end
-end
 
-
-function update_srf_sources!(omegaU, omegaR, U, x0, rotaxis, omega, config)
-    (; hardware) = config
-    (; backend, workgroup) = hardware
-    mesh = U.mesh
-    cells = mesh.cells 
-
-    ndrange = length(cells)
-    kernel! = _update_srf_sources!(_setup(backend, workgroup, ndrange)...)
-    kernel!(omegaU, omegaR, U, x0, rotaxis, omega, cells)
-end
-
-@kernel function _update_srf_sources!(omegaU, omegaR, U, x0, rotaxis, omega, cells)
-    cID = @index(Global)
-
-    Omega = omega*rotaxis
-    r = cells[cID].centre - x0
-    omegaR[cID] = Omega × Omega × r
-    omegaU[cID] = 2*Omega × U[cID]
-end
-
-
-function make_absolute_velocity!(U,  x0, rotaxis, omega, config)
-    (; hardware) = config
-    (; backend, workgroup) = hardware
-    mesh = U.mesh
-    cells = mesh.cells 
-
-    ndrange = length(cells)
-    kernel! = _make_absolute_velocity!(_setup(backend, workgroup, ndrange)...)
-    kernel!(U,  x0, rotaxis, omega, cells)
-    println("Made velocity absolute")
-
-end
-
-@kernel function _make_absolute_velocity!(U,  x0, rotaxis, omega, cells)
-    cID = @index(Global)
-
-    Omega = omega*rotaxis
-    r = cells[cID].centre - x0
-    U[cID] = U[cID] + Omega × r
+    @inbounds begin
+        (; area, normal) = faces[i]
+        Omega = omega*rotaxis
+        r = faces[i].centre - x0
+        Sf = area * normal
+        values[i] = (psif[i] ⋅ Sf) - ((Omega × r) ⋅ Sf)
+    end
 end
