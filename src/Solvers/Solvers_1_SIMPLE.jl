@@ -262,7 +262,9 @@ function SIMPLE(
             finish!(progress)
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
-                save_output(model, outputWriter, iteration, time, config)
+                # save_output(model, outputWriter, iteration, time, config)
+                save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
+    
             end
             break
         end
@@ -281,7 +283,8 @@ function SIMPLE(
         runtime_postprocessing!(postprocess,iteration,iterations)
         
         if iteration%write_interval + signbit(write_interval) == 0      
-            save_output(model, outputWriter, iteration, time, config)
+            # save_output(model, outputWriter, iteration, time, config)
+            save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
 
@@ -372,6 +375,41 @@ function correction_weight(cells, faces, fi)
     return w, df
 end
 
+
+### TEMP LOCATION FOR PROTOTYPING
+
+function correct_mass_flux(mdotf, p, rDf, config)
+    # sngrad = FaceScalarField(mesh)
+    (; faces, cells, boundary_cellsID) = mdotf.mesh
+    (; hardware) = config
+    (; backend, workgroup) = hardware
+
+    n_faces = length(faces)
+    n_bfaces = length(boundary_cellsID)
+    n_ifaces = n_faces - n_bfaces
+
+    ndrange = n_ifaces # length(n_ifaces) was a BUG! should be n_ifaces only!!!!
+    kernel! = _correct_mass_flux(_setup(backend, workgroup, ndrange)...)
+    kernel!(mdotf, p, rDf, faces, cells, n_bfaces)
+    # KernelAbstractions.synchronize(backend)
+end
+
+@kernel function _correct_mass_flux(mdotf, p, rDf, faces, cells, n_bfaces)
+    i = @index(Global)
+    fID = i + n_bfaces
+
+    @inbounds begin 
+        face = faces[fID]
+        (; area, normal, ownerCells, delta) = face 
+        cID1 = ownerCells[1]
+        cID2 = ownerCells[2]
+        p1 = p[cID1]
+        p2 = p[cID2]
+        face_grad = area*(p2 - p1)/delta # best option so far!
+        mdotf[fID] -= face_grad*rDf[fID]
+    end
+end
+
 # MRF functions ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 function update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
@@ -418,4 +456,30 @@ end
         Sf = area * normal
         values[i] = (psif[i] ⋅ Sf) - ((Omega × r) ⋅ Sf)
     end
+end
+
+
+
+
+function save_output_polar(model::Physics{T,F,SO,M,Tu,E,D,BI}, outputWriter, iteration, time, config, x0, rotaxis
+    ) where {T,F,SO,M,Tu,E,D,BI}
+    U = model.momentum.U
+    mesh = U.mesh
+    cells = mesh.cells
+    Up = VectorField(mesh)
+
+    for i ∈ eachindex(Up.x.values)
+        r = cells[i].centre - x0
+        r_norm = r./norm(r)
+        tang = r_norm × rotaxis
+        Up.x.values[i] = U[i] ⋅ r_norm
+        Up.z.values[i] = U.z.values[i]
+        Up.y.values[i] = U[i] ⋅ tang
+    end
+    args = (
+        ("U", model.momentum.U), 
+        ("Up", Up), 
+        ("p", model.momentum.p)
+    )
+    write_results(iteration, time, model.domain, outputWriter, config.boundaries, args...)
 end
