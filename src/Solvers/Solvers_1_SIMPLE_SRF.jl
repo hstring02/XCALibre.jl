@@ -161,15 +161,15 @@ function SIMPLE_MRF(
 
     update_nueff!(nueff, nu, model.turbulence, config)
 
-    @info "Starting SIMPLE_MRF loops..."
+    @info "Starting SIMPLE_SRF loops..."
 
     progress = Progress(iterations; dt=1.0, showspeed=true)
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
-    omega = model.MRF.omega
-    rotaxis = model.MRF.rotaxis
-    x0 = model.MRF.x0
+    omega = model.REF_FRAME.omega
+    rotaxis = model.REF_FRAME.rotaxis
+    x0 = model.REF_FRAME.x0
 
     for iteration ∈ 1:iterations
         time = iteration

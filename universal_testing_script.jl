@@ -1,5 +1,6 @@
 using Plots
 using XCALibre
+using StaticArrays
 
 
 # mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
@@ -22,8 +23,8 @@ Re = velocity[1]*0.1/nu
 
 # Rotating reference frames
 omega = 6.0
-rotaxis = SVector([0.0, 0.0, 1.0]){3}
-x0 = SVector([0.0, 0.0, 0.0]){3}
+rotaxis = SVector{3}([0.0, 0.0, 1.0])
+x0 = SVector{3}([0.0, 0.0, 0.0])
 # zones = ScalarField(mesh).+1
 # MRF = MRF(omega, rotaxis, x0, zones)
 SRF = SRF(omega, rotaxis, x0)

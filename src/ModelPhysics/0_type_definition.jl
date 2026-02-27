@@ -39,7 +39,7 @@ struct Physics{T,F,SO,M,Tu,E,D,BI,REF_FRAME}
     energy::E
     domain::D
     boundary_info::BI
-    REF_FRAME::REF_FRAME
+    REF_FRAME
 end 
 Adapt.@adapt_structure Physics
 
