@@ -30,7 +30,7 @@ function simple_SRF!(
     output=VTK(), pref=nothing, ncorrectors=0, inner_loops=0
     )
 
-    residuals = setup_incompressible_solvers(
+    residuals = setup_incompressible_solvers_SRF(
         SIMPLE_SRF, model, config; 
         output=output,
         pref=pref, 
@@ -42,7 +42,7 @@ function simple_SRF!(
 end
 
 # Setup for all incompressible algorithms
-function setup_incompressible_solvers(
+function setup_incompressible_solvers_SRF(
     solver_variant, model, config; 
     output=VTK(), pref=nothing, ncorrectors=0, inner_loops=0
     ) 

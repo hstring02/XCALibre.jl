@@ -23,7 +23,7 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 Re = velocity[1]*0.1/nu
 
 # Rotating reference frames
-omega = 6.0
+omega = 100.0
 rotaxis = SVector{3}([0.0, 0.0, 1.0])
 x0 = SVector{3}([0.0, 0.0, 0.0])
 # zones = ScalarField(mesh).+1

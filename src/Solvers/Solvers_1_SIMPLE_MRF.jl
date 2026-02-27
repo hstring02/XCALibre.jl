@@ -30,7 +30,7 @@ function simple_MRF!(
     output=VTK(), pref=nothing, ncorrectors=0, inner_loops=0
     )
 
-    residuals = setup_incompressible_solvers(
+    residuals = setup_incompressible_solvers_MRF(
         SIMPLE_MRF, model, config; 
         output=output,
         pref=pref, 
@@ -42,7 +42,7 @@ function simple_MRF!(
 end
 
 # Setup for all incompressible algorithms
-function setup_incompressible_solvers(
+function setup_incompressible_solvers_MRF(
     solver_variant, model, config; 
     output=VTK(), pref=nothing, ncorrectors=0, inner_loops=0
     ) 
