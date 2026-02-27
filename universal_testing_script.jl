@@ -135,7 +135,12 @@ Fp = pressure_force(:wall, model.momentum.p, 1.25)
 Fv = viscous_force(:wall, model.momentum.U, 1.25, nu, model.turbulence.nut)
 
 
-# plot(; xlims=(0,494))
-# plot!(1:length(Rx), Rx, yscale=:log10, label="Ux")
-# plot!(1:length(Ry), Ry, yscale=:log10, label="Uy")
-# plot!(1:length(Rp), Rp, yscale=:log10, label="p")
+# Custom Output Functions
+mesh_name = get_mesh_name(mesh_file)
+velocity_name = string("velocity_",u_mag)*'_'
+omega_name = string("omega_",omega)*'_'
+script_name = string(@__FILE__)
+output_dir = mesh_name * omega_name * "_polarCoords"
+pattern = "vtk"
+# pattern = "foam"
+output_directory(output_dir, script_name)
