@@ -10,7 +10,7 @@ hardware = Hardware(backend=backend, workgroup=workgroup)
 mesh_dev = adapt(backend, mesh)
 
 nu = 1e-3
-velocity = [5.0, 0.0, 0.0]
+velocity = [0.0, 0.0, 0.0]
 Tu = 0.05
 nuR = 100
 k_inlet = 1 #3/2*(Tu*u_mag)^2
@@ -18,11 +18,13 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
+# Rotating reference frames
 omega = 6.0
 rotaxis = SVector([0.0, 0.0, 1.0]){3}
 x0 = SVector([0.0, 0.0, 0.0]){3}
-zones = ScalarField(mesh).+1
-MRF = MRF(omega, rotaxis, x0, zones)
+# zones = ScalarField(mesh).+1
+# MRF = MRF(omega, rotaxis, x0, zones)
+SRF = SRF(omega, rotaxis, x0)
 
 model = Physics(
     time = Steady(),
@@ -30,7 +32,7 @@ model = Physics(
     turbulence = RANS{KOmega}(),
     energy = Energy{Isothermal}(),
     domain = mesh_dev,
-    REF_FRAME = MRF
+    REF_FRAME = SRF
     )
 
 BCs = assign(
