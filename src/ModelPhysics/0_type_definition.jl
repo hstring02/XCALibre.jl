@@ -39,7 +39,7 @@ struct Physics{T,F,SO,M,Tu,E,D,BI,REF_FRAME}
     energy::E
     domain::D
     boundary_info::BI
-    REF_FRAME
+    REF_FRAME::REF_FRAME
 end 
 Adapt.@adapt_structure Physics
 
@@ -118,7 +118,7 @@ end
 - `domain` - provides the mesh to used (must be adapted to the target backend device)
 
 """
-Physics(; time, fluid=nothing, solid=nothing, turbulence=nothing, energy, domain, REF_FRAME=nothing) = begin
+Physics(; time, fluid=nothing, solid=nothing, turbulence=nothing, energy, domain, REF_FRAME) = begin
     # NOTE: this function will be changed if/when a "medium" keyword is introduced. This will get rid of this ugly if statements! 
     momentum = Momentum(domain)
 
@@ -135,6 +135,11 @@ Physics(; time, fluid=nothing, solid=nothing, turbulence=nothing, energy, domain
     if turbulence !== nothing
         turbulence = turbulence(domain)
     end
+
+    if REF_FRAME == nothing
+        REF_FRAME = "Absolute"
+    end
+
     boundary_info = boundary_map(domain)
     Physics(
         time,

@@ -44,6 +44,7 @@ using Reexport
 @reexport using XCALibre.UNV3
 @reexport using XCALibre.UNV2
 @reexport using XCALibre.BlockMesher2D
+@reexport using XCALibre.ReferenceFrames
 
 using StaticArrays, LinearAlgebra, SparseMatricesCSR, SparseArrays, LinearOperators
 using ProgressMeter, Printf, Adapt

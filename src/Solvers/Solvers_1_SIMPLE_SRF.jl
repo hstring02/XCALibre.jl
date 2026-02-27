@@ -104,7 +104,7 @@ function setup_incompressible_solvers(
     return residuals
 end # end function
 
-function SIMPLE_MRF(
+function SIMPLE_SRF(
     model, turbulenceModel, ∇p, U_eqn, p_eqn, config; 
     output=VTK(), pref=nothing, ncorrectors=0, inner_loops=0
     )
@@ -193,8 +193,7 @@ function SIMPLE_MRF(
         # div!(divHv, Uf, config) 
 
         # new approach
-        # flux!(mdotf, Uf, config)
-        flux_mrf!(mdotf, Uf, config, x0, rotaxis, omega)
+        flux!(mdotf, Uf, config)
         div!(divHv, mdotf, config)
         
         # Pressure calculations
@@ -269,7 +268,7 @@ function SIMPLE_MRF(
         
         if iteration%write_interval + signbit(write_interval) == 0      
             # make_absolute_velocity!(U,  x0, rotaxis, omega, config)
-            # save_output(model, outputWriter, iteration, time, config)
+            save_output(model, outputWriter, iteration, time, config)
             # save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
             # save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end

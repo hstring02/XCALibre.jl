@@ -13,7 +13,8 @@ hardware = Hardware(backend=backend, workgroup=workgroup)
 mesh_dev = adapt(backend, mesh)
 
 nu = 1e-3
-velocity = [0.0, 0.0, 0.0]
+u_mag = 0.0
+velocity = [u_mag, 0.0, 0.0]
 Tu = 0.05
 nuR = 100
 k_inlet = 1 #3/2*(Tu*u_mag)^2
@@ -26,8 +27,9 @@ omega = 6.0
 rotaxis = SVector{3}([0.0, 0.0, 1.0])
 x0 = SVector{3}([0.0, 0.0, 0.0])
 # zones = ScalarField(mesh).+1
-# MRF = MRF(omega, rotaxis, x0, zones)
-SRF = SRF(omega, rotaxis, x0)
+# REF_FRAME = nothing
+# REF_FRAME = MRF(omega, rotaxis, x0, zones)
+REF_FRAME = SRF(omega, rotaxis, x0)
 
 model = Physics(
     time = Steady(),
@@ -35,7 +37,7 @@ model = Physics(
     turbulence = RANS{KOmega}(),
     energy = Energy{Isothermal}(),
     domain = mesh_dev,
-    REF_FRAME = SRF
+    REF_FRAME = REF_FRAME
     )
 
 BCs = assign(
@@ -47,19 +49,23 @@ BCs = assign(
         ],
         p = [
             # Neumann(:Boundary, 0.0),
-            Dirichlet(:boundary, 0.0),
+            #Dirichlet(:boundary, 0.0),
+            Wall(:boundary),
             Wall(:walls)
         ],
         k = [
-            Dirichlet(:boundary, k_inlet),
+            #Dirichlet(:boundary, k_inlet),
+            KWallFunction(:boundary)
             KWallFunction(:walls)
         ],
         omega = [
-            Dirichlet(:boundary, ω_inlet),
+            #Dirichlet(:boundary, ω_inlet),
+            OmegaWallFunction(:boundary)
             OmegaWallFunction(:walls)
         ],
         nut = [
-            Dirichlet(:boundary, νt_inlet),
+            #Dirichlet(:boundary, νt_inlet),
+            NutWallFunction(:boundary)
             NutWallFunction(:walls)
         ]
     )
@@ -84,7 +90,7 @@ solvers = (
     p = SolverSetup(
         solver      = Cg(), #Gmres(), #Cg(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 1e-7,
+        convergence = 5e-7,
         relax       = 0.3,
         rtol = 1e-3,
         atol = 1e-10
@@ -92,7 +98,7 @@ solvers = (
     k = SolverSetup(
         solver      = Bicgstab(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 1e-7,
+        convergence = 5e-6,
         relax       = 0.7,
         rtol = 1e-2,
         atol = 1e-10
@@ -107,7 +113,7 @@ solvers = (
     )
 )
 
-runtime = Runtime(iterations=1000, write_interval=100, time_step=1)
+runtime = Runtime(iterations=3000, write_interval=100, time_step=1)
 # runtime = Runtime(iterations=2, write_interval=-1, time_step=1)
 
 config = Configuration(
@@ -130,7 +136,7 @@ mesh_name = get_mesh_name(mesh_file)
 velocity_name = string("velocity_",u_mag)*'_'
 omega_name = string("omega_",omega)*'_'
 script_name = string(@__FILE__)
-output_dir = mesh_name * omega_name * "_polarCoords"
+output_dir = mesh_name * omega_name * # "_polarCoords"
 pattern = "vtk"
 # pattern = "foam"
 output_directory(output_dir, script_name)

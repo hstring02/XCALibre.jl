@@ -28,6 +28,8 @@ using XCALibre.Postprocess
 
 include("Solvers_0_functions.jl")
 include("Solvers_1_SIMPLE.jl")
+include("Solvers_1_SIMPLE_MRF.jl")
+include("Solvers_1_SIMPLE_SRF.jl")
 include("Solvers_1_LAPLACE.jl")
 include("Solvers_1_CSIMPLE.jl")
 include("Solvers_2_PISO.jl")
