@@ -4,8 +4,8 @@ using StaticArrays
 
 
 # mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
-mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
-# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
+# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
+mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
@@ -22,14 +22,11 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
-
-# Rotating reference frames
-REF = REF_FRAME(
-    type = 1,   # 0 - Absolute, 1 - SRF, 2 - MRF 
-    omega = 100.0, 
-    rotaxis = SVector{3}([0.0, 0.0, 1.0]), 
-    x0 = SVector{3}([0.0, 0.0, 0.0])
-    )
+type = 1   # 0 - Absolute, 1 - SRF, 2 - MRF 
+omega = 10.0 
+rotaxis = SVector{3}([0.0, 0.0, 1.0]) 
+x0 = SVector{3}([0.0, 0.0, 0.0])
+REF = REF_FRAME(type, omega, rotaxis, x0)
 
 model = Physics(
     time = Steady(),
@@ -44,7 +41,8 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            RotatingWall(:boundary, rpm=-(omega*(30/pi)), centre=x0, axis=rotaxis),
+            RotatingWall(:boundary, rpm=(omega*(30/pi)), # THE DIRECTION OF HTE MAKE VELOCITY ABSOLUTE HAS BEEN FLIPPED <ALSO CHECK THE MOMENTUM SOURCE DIRECTIONS
+            centre=x0, axis=rotaxis),
             Wall(:walls, [0.0, 0.0, 0.0])
         ],
         p = [
@@ -90,7 +88,7 @@ solvers = (
     p = SolverSetup(
         solver      = Cg(), #Gmres(), #Cg(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 5e-7,
+        convergence = 2e-6,
         relax       = 0.3,
         rtol = 1e-3,
         atol = 1e-10
@@ -98,7 +96,7 @@ solvers = (
     k = SolverSetup(
         solver      = Bicgstab(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 5e-6,
+        convergence = 2e-6,
         relax       = 0.7,
         rtol = 1e-2,
         atol = 1e-10
@@ -113,7 +111,7 @@ solvers = (
     )
 )
 
-runtime = Runtime(iterations=3000, write_interval=100, time_step=1)
+runtime = Runtime(iterations=1000, write_interval=100, time_step=1)
 # runtime = Runtime(iterations=2, write_interval=-1, time_step=1)
 
 config = Configuration(
@@ -136,7 +134,7 @@ mesh_name = get_mesh_name(mesh_file)
 velocity_name = string("velocity_",u_mag)*'_'
 omega_name = string("omega_",omega)*'_'
 script_name = string(@__FILE__)
-output_dir = mesh_name * omega_name * # "_polarCoords"
+output_dir = mesh_name * omega_name *  "_polarCoords_SRF"
 pattern = "vtk"
 # pattern = "foam"
 output_directory(output_dir, script_name)

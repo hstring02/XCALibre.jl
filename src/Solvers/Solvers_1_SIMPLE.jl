@@ -473,6 +473,8 @@ function SIMPLE_SRF(
     rotaxis = model.REF_FRAME.rotaxis
     x0 = model.REF_FRAME.x0
 
+    U_temp = VectorField(mesh)
+
     for iteration ∈ 1:iterations
         time = iteration
 
@@ -548,9 +550,9 @@ function SIMPLE_SRF(
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
                 make_absolute_velocity!(U,  x0, rotaxis, omega, config)
-                save_output(model, outputWriter, iteration, time, config)
-                # save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
-                save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
+                # save_output(model, outputWriter, iteration, time, config)
+                save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
+                # save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
             end
             break
         end
@@ -568,10 +570,12 @@ function SIMPLE_SRF(
         
         runtime_postprocessing!(postprocess,iteration,iterations)
         
-        if iteration%write_interval + signbit(write_interval) == 0      
-            # make_absolute_velocity!(U,  x0, rotaxis, omega, config)
-            save_output(model, outputWriter, iteration, time, config)
-            # save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
+        if iteration%write_interval + signbit(write_interval) == 0  
+            U_temp = U    
+            make_absolute_velocity!(U,  x0, rotaxis, omega, config)
+            # save_output(model, outputWriter, iteration, time, config)
+            save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
+            U = U_temp
             # save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
 
@@ -991,7 +995,6 @@ function make_absolute_velocity!(U,  x0, rotaxis, omega, config)
     ndrange = length(cells)
     kernel! = _make_absolute_velocity!(_setup(backend, workgroup, ndrange)...)
     kernel!(U,  x0, rotaxis, omega, cells)
-    println("Made velocity absolute")
 
 end
 
@@ -1000,7 +1003,7 @@ end
 
     Omega = omega*rotaxis
     r = cells[cID].centre - x0
-    U[cID] = U[cID] + Omega × r
+    U[cID] = U[cID] - Omega × r
 end
 
 # MRF functions ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

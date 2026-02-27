@@ -1,8 +1,8 @@
 export REF_FRAME
 
 struct REF_FRAME_values
-    type::Int64
-    omega::Float64
+    type
+    omega
     rotaxis
     x0
 end

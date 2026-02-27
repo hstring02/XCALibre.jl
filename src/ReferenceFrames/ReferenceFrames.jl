@@ -1,6 +1,7 @@
 module ReferenceFrames
 
 using Adapt
+using LinearAlgebra
 
 using XCALibre.Multithread
 using XCALibre.Mesh
