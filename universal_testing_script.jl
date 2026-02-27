@@ -2,7 +2,9 @@ using Plots
 using XCALibre
 
 
-mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\03_SRF_Testing\01_Meshing\01_SpinningSquare\Square_In_Circle_V3_100mm.unv")
+# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
+mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
+# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
