@@ -62,6 +62,7 @@ function setup_incompressible_solvers(
     initialise!(rDf, 1.0)
     nueff = FaceScalarField(mesh)
     divHv = ScalarField(mesh)
+    omegaU = VectorField(mesh)
 
     @info "Defining models..."
 
@@ -71,6 +72,7 @@ function setup_incompressible_solvers(
         - Laplacian{schemes.U.laplacian}(nueff, U) 
         == 
         - Source(∇p.result)
+        - Source(omegaU)
     ) → VectorEquation(U, boundaries.U)
 
     p_eqn = (
@@ -119,6 +121,7 @@ function SIMPLE_MRF(
     postprocess = convert_time_to_iterations(postprocess,model,dt_cpu[1],iterations)
     mdotf = get_flux(U_eqn, 2)
     nueff = get_flux(U_eqn, 3)
+    omegaU = get_source(U_eqn, 2)
     rDf = get_flux(p_eqn, 1)
     divHv = get_source(p_eqn, 1)
 
@@ -161,8 +164,15 @@ function SIMPLE_MRF(
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
+    omega = model.MRF.omega
+    rotaxis = model.MRF.rotaxis
+    x0 = model.MRF.x0
+    zones = model.MRF.zones
+
     for iteration ∈ 1:iterations
         time = iteration
+
+        update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
 
         rx, ry, rz = solve_equation!(U_eqn, U, boundaries.U, solvers.U, xdir, ydir, zdir, config)
         
@@ -181,7 +191,8 @@ function SIMPLE_MRF(
         # div!(divHv, Uf, config) 
 
         # new approach
-        flux!(mdotf, Uf, config)
+        # flux!(mdotf, Uf, config)
+        flux_mrf!(mdotf, Uf, config, x0, rotaxis, omega)
         div!(divHv, mdotf, config)
         
         # Pressure calculations
@@ -234,6 +245,7 @@ function SIMPLE_MRF(
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
                 save_output(model, outputWriter, iteration, time, config)
+                # save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
                 save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
             end
             break
@@ -254,6 +266,7 @@ function SIMPLE_MRF(
         
         if iteration%write_interval + signbit(write_interval) == 0      
             save_output(model, outputWriter, iteration, time, config)
+            # save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
 
@@ -465,4 +478,53 @@ end
     phifi =  w*phi1 + one_w*phi2
     phif[fID] = phifi
     phif[pfID] = phifi
+end
+
+
+# MRF functions ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+function update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
+    (; hardware) = config
+    (; backend, workgroup) = hardware
+    mesh = U.mesh
+    cells = mesh.cells 
+
+    ndrange = length(cells)
+    kernel! = _update_mrf_sources!(_setup(backend, workgroup, ndrange)...)
+    kernel!(omegaU, U, x0, rotaxis, omega, cells)
+end
+
+@kernel function _update_mrf_sources!(omegaU, U, x0, rotaxis, omega, cells)
+    cID = @index(Global)
+
+    Omega = omega*rotaxis
+    omegaU[cID] = Omega × U[cID]
+end
+
+
+function flux_mrf!(phif::FS, psif::FV, config, x0, rotaxis, omega) where {FS<:FaceScalarField,FV<:FaceVectorField}
+    (; hardware) = config
+    (; backend, workgroup) = hardware
+
+    ndrange = length(phif)
+    kernel! = _flux_mrf!(_setup(backend, workgroup, ndrange)...)
+    kernel!(phif, psif, x0, rotaxis, omega)
+    # # KernelAbstractions.synchronize(backend)
+end
+
+@kernel function _flux_mrf!(phif, psif, x0, rotaxis, omega)
+    i = @index(Global)
+
+    @uniform begin
+        (; mesh, values) = phif
+        (; faces) = mesh
+    end
+
+    @inbounds begin
+        (; area, normal) = faces[i]
+        Omega = omega*rotaxis
+        r = faces[i].centre - x0
+        Sf = area * normal
+        values[i] = (psif[i] ⋅ Sf) - ((Omega × r) ⋅ Sf)
+    end
 end
