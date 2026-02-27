@@ -41,34 +41,25 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            Dirichlet(:inlet, velocity),
-            Extrapolated(:outlet),
-            Wall(:wall, [0.0, 0.0, 0.0]),
-            Wall(:top, [0.0, 0.0, 0.0])
+            RotatingWall(:boundary, rpm=-(omega*(30/pi)), centre=x0, axis=rotaxis),
+            Wall(:walls, [0.0, 0.0, 0.0])
         ],
         p = [
-            Neumann(:inlet, 0.0),
-            Dirichlet(:outlet, 0.0),
-            Wall(:wall),
-            Wall(:top)
+            # Neumann(:Boundary, 0.0),
+            Dirichlet(:boundary, 0.0),
+            Wall(:walls)
         ],
         k = [
-            Dirichlet(:inlet, k_inlet),
-            Extrapolated(:outlet),
-            KWallFunction(:wall),
-            KWallFunction(:top)
+            Dirichlet(:boundary, k_inlet),
+            KWallFunction(:walls)
         ],
         omega = [
-            Dirichlet(:inlet, ω_inlet),
-            Extrapolated(:outlet),
-            OmegaWallFunction(:wall),
-            OmegaWallFunction(:top)
+            Dirichlet(:boundary, ω_inlet),
+            OmegaWallFunction(:walls)
         ],
         nut = [
-            Dirichlet(:inlet, νt_inlet),
-            Extrapolated(:outlet),
-            NutWallFunction(:wall), 
-            NutWallFunction(:top)
+            Dirichlet(:boundary, νt_inlet),
+            NutWallFunction(:walls)
         ]
     )
 )
@@ -115,7 +106,7 @@ solvers = (
     )
 )
 
-runtime = Runtime(iterations=3000, write_interval=100, time_step=1)
+runtime = Runtime(iterations=1000, write_interval=100, time_step=1)
 # runtime = Runtime(iterations=2, write_interval=-1, time_step=1)
 
 config = Configuration(
@@ -131,10 +122,6 @@ initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, νt_inlet)
 
 residuals = run!(model, config) # 145 iterations
-
-Reff = stress_tensor(model.momentum.U, nu, model.turbulence.nut)
-Fp = pressure_force(:wall, model.momentum.p, 1.25)
-Fv = viscous_force(:wall, model.momentum.U, 1.25, nu, model.turbulence.nut)
 
 
 # Custom Output Functions
