@@ -27,9 +27,13 @@ omega = 100.0
 rotaxis = SVector{3}([0.0, 0.0, 1.0])
 x0 = SVector{3}([0.0, 0.0, 0.0])
 # zones = ScalarField(mesh).+1
-# REF_FRAME = nothing
-# REF_FRAME = MRF(omega, rotaxis, x0, zones)
-REF_FRAME = SRF(omega, rotaxis, x0)
+# Rotating reference frames
+omega = 100.0
+rotaxis = SVector{3}([0.0, 0.0, 1.0])
+x0 = SVector{3}([0.0, 0.0, 0.0])
+# zones = ScalarField(mesh).+1
+type = 1   # 0 - Absolute, 1 - SRF, 2 - MRF
+REF_FRAME = REF_FRAME(type, omega, rotaxis, x0)
 
 model = Physics(
     time = Steady(),

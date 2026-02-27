@@ -1,29 +1,16 @@
-export SRF
-export MRF
+export REF_FRAME
 
-struct SRF_values
-    omega
-    rotaxis
-    x0
-end
-
-SRF(omega, rotaxis, x0) = begin
-    SRF_values(
-        omega,
-        rotaxis,
-        x0
-    )
-end
-
-struct MRF_values
+struct REF_FRAME
+    type
     omega
     rotaxis
     x0
     zones
 end
 
-MRF(omega, rotaxis, x0, zones) = begin
-    MRF_values(
+REF_FRAME(type, omega, rotaxis, x0, zones) = begin
+    SRF_values(
+        type,
         omega,
         rotaxis,
         x0,
