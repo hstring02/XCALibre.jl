@@ -22,18 +22,14 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
+
 # Rotating reference frames
-omega = 100.0
-rotaxis = SVector{3}([0.0, 0.0, 1.0])
-x0 = SVector{3}([0.0, 0.0, 0.0])
-# zones = ScalarField(mesh).+1
-# Rotating reference frames
-omega = 100.0
-rotaxis = SVector{3}([0.0, 0.0, 1.0])
-x0 = SVector{3}([0.0, 0.0, 0.0])
-# zones = ScalarField(mesh).+1
-type = 1   # 0 - Absolute, 1 - SRF, 2 - MRF
-REF_FRAME = REF_FRAME(type, omega, rotaxis, x0)
+REF = REF_FRAME(
+    type = 1,   # 0 - Absolute, 1 - SRF, 2 - MRF 
+    omega = 100.0, 
+    rotaxis = SVector{3}([0.0, 0.0, 1.0]), 
+    x0 = SVector{3}([0.0, 0.0, 0.0])
+    )
 
 model = Physics(
     time = Steady(),
@@ -41,7 +37,7 @@ model = Physics(
     turbulence = RANS{KOmega}(),
     energy = Energy{Isothermal}(),
     domain = mesh_dev,
-    REF_FRAME = REF_FRAME
+    REF_FRAME = REF
     )
 
 BCs = assign(
