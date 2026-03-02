@@ -1050,7 +1050,7 @@ end
         Omega = omega*rotaxis
         r = faces[i].centre - x0
         Sf = area * normal
-        values[i] = (psif[i] ⋅ Sf) - ((Omega × r) ⋅ Sf)
+        values[i] = (psif[i] ⋅ Sf) - (Omega × r ⋅ Sf)
     end
 end
 
