@@ -3,9 +3,9 @@ using XCALibre
 using StaticArrays
 
 
-# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
+mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
 # mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
-mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
+# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
@@ -22,7 +22,7 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
-type = 1   # 0 - Absolute, 1 - SRF, 2 - MRF 
+type = 0   # 0 - Absolute, 1 - SRF, 2 - MRF 
 omega = 10.0 
 rotaxis = SVector{3}([0.0, 0.0, 1.0]) 
 x0 = SVector{3}([0.0, 0.0, 0.0])
@@ -41,9 +41,10 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            RotatingWall(:boundary, rpm=(omega*(30/pi)), # THE DIRECTION OF HTE MAKE VELOCITY ABSOLUTE HAS BEEN FLIPPED <ALSO CHECK THE MOMENTUM SOURCE DIRECTIONS
-            centre=x0, axis=rotaxis),
-            Wall(:walls, [0.0, 0.0, 0.0])
+            #RotatingWall(:boundary, rpm= -(omega*(30/pi)), centre=x0, axis=rotaxis),
+            #Wall(:walls, [0.0, 0.0, 0.0]),
+            RotatingWall(:walls, rpm= (omega*(30/pi)), centre=x0, axis=rotaxis),
+            Wall(:boundary, [0.0, 0.0, 0.0])
         ],
         p = [
             # Neumann(:Boundary, 0.0),
@@ -134,7 +135,7 @@ mesh_name = get_mesh_name(mesh_file)
 velocity_name = string("velocity_",u_mag)*'_'
 omega_name = string("omega_",omega)*'_'
 script_name = string(@__FILE__)
-output_dir = mesh_name * omega_name *  "_polarCoords_SRF"
+output_dir = mesh_name * omega_name *  "_polarCoords_ABS"
 pattern = "vtk"
 # pattern = "foam"
 output_directory(output_dir, script_name)
