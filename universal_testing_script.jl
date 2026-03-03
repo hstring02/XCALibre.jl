@@ -3,9 +3,12 @@ using XCALibre
 using StaticArrays
 
 
-mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
-# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
+# mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
+# mesh_file = (raw"C:\Users\goodm\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningCylinder0p2Diameter\SpinningCylinder0p2Diameter.unv")
+mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
+#mesh_file = (raw"C:\Users\goodm\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningSquare0p2Diameter\SpinningSquare0p2Diameter.unv")
 # mesh_file = (raw"C:\Users\Harry\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
+#mesh_file = (raw"C:\Users\goodm\OneDrive - The University of Nottingham\1 - Documents\Year 5\01_MEng_Project\3_FlowSims\04_MRF_vs_SRF_vs_norm\01_Meshing\SpinningPlate0p3Diameter\SpinningPlate0p3Diameter.unv")
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 backend = CPU(); workgroup = 1024; activate_multithread(backend)
@@ -22,7 +25,7 @@ k_inlet = 1 #3/2*(Tu*u_mag)^2
 νt_inlet = k_inlet/ω_inlet
 Re = velocity[1]*0.1/nu
 
-type = 0   # 0 - Absolute, 1 - SRF, 2 - MRF 
+type = 1  # 0 - Absolute, 1 - SRF, 2 - MRF 
 omega = 10.0 
 rotaxis = SVector{3}([0.0, 0.0, 1.0]) 
 x0 = SVector{3}([0.0, 0.0, 0.0])
@@ -41,10 +44,12 @@ BCs = assign(
     region = mesh_dev,
     (
         U = [
-            #RotatingWall(:boundary, rpm= -(omega*(30/pi)), centre=x0, axis=rotaxis),
-            #Wall(:walls, [0.0, 0.0, 0.0]),
-            RotatingWall(:walls, rpm= (omega*(30/pi)), centre=x0, axis=rotaxis),
-            Wall(:boundary, [0.0, 0.0, 0.0])
+            RotatingWall(:boundary, rpm= -(omega*(30/pi)), centre=x0, axis=rotaxis),
+            Wall(:walls, [0.0, 0.0, 0.0])
+            #RotatingWall(:walls, rpm= (omega*(30/pi)), centre=x0, axis=rotaxis),
+            #Wall(:boundary, [0.0, 0.0, 0.0])
+            #Dirichlet(:boundary,velocity)
+            #Extrapolated(:boundary)
         ],
         p = [
             # Neumann(:Boundary, 0.0),
@@ -81,7 +86,7 @@ solvers = (
     U = SolverSetup(
         solver      = Bicgstab(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 1e-7,
+        convergence = 1e-6,
         relax       = 0.7,
         rtol = 1e-2,
         atol = 1e-10
@@ -89,7 +94,7 @@ solvers = (
     p = SolverSetup(
         solver      = Cg(), #Gmres(), #Cg(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 2e-6,
+        convergence = 1e-5,
         relax       = 0.3,
         rtol = 1e-3,
         atol = 1e-10
@@ -97,7 +102,7 @@ solvers = (
     k = SolverSetup(
         solver      = Bicgstab(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 2e-6,
+        convergence = 5e-6,
         relax       = 0.7,
         rtol = 1e-2,
         atol = 1e-10
@@ -105,7 +110,7 @@ solvers = (
     omega = SolverSetup(
         solver      = Bicgstab(), # Bicgstab(), Gmres()
         preconditioner = Jacobi(),
-        convergence = 1e-7,
+        convergence = 1e-6,
         relax       = 0.7,
         rtol = 1e-2,
         atol = 1e-10
@@ -121,7 +126,11 @@ config = Configuration(
 
 GC.gc()
 
-initialise!(model.momentum.U, velocity)
+if type == 1
+    initialise_srf!(model.momentum.U,  x0, rotaxis, omega, config)
+else
+    initialise!(model.momentum.U, velocity)
+end
 initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
@@ -131,11 +140,27 @@ residuals = run!(model, config) # 145 iterations
 
 
 # Custom Output Functions
+if type == 2
+    REF_type = "MRF"
+elseif type == 1
+    REF_type = "SRF"
+else 
+    REF_type = "ABS"
+end
 mesh_name = get_mesh_name(mesh_file)
 velocity_name = string("velocity_",u_mag)*'_'
 omega_name = string("omega_",omega)*'_'
 script_name = string(@__FILE__)
-output_dir = mesh_name * omega_name *  "_polarCoords_ABS"
+output_dir = mesh_name * omega_name *  "polarCoords_" * REF_type * "_test"
 pattern = "vtk"
 # pattern = "foam"
 output_directory(output_dir, script_name)
+
+using Plots
+iterations = runtime.iterations
+plot(yscale=:log10, ylims=(1e-8,1e-1))
+plot!(1:iterations, residuals.Ux, label="Ux")
+plot!(1:iterations, residuals.Uy, label="Uy")
+plot!(1:iterations, residuals.Uz, label="Uz")
+plot!(1:iterations, residuals.p, label="p")
+plot!(size=(800,600))

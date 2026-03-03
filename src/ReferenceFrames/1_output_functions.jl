@@ -16,7 +16,7 @@ function save_output_polar(model::Physics{T,F,SO,M,Tu,E,D,BI}, outputWriter, ite
         tang = r_norm × rotaxis
         Up.x.values[i] = U[i] ⋅ r_norm
         Up.z.values[i] = U.z.values[i]
-        Up.y.values[i] = U[i] ⋅ tang
+        Up.y.values[i] = -(U[i] ⋅ tang)
     end
     args = (
         ("U", model.momentum.U), 

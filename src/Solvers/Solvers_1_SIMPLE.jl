@@ -303,6 +303,10 @@ function SIMPLE(
 
     progress = Progress(iterations; dt=1.0, showspeed=true)
 
+    omega = model.REF_FRAME.omega
+    rotaxis = model.REF_FRAME.rotaxis
+    x0 = model.REF_FRAME.x0
+
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
     for iteration ∈ 1:iterations
@@ -552,9 +556,9 @@ function SIMPLE_SRF(
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
                 make_absolute_velocity!(U,  x0, rotaxis, omega, config)
-                # save_output(model, outputWriter, iteration, time, config)
+                #save_output(model, outputWriter, iteration, time, config)
                 save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
-                # save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
+                save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
             end
             break
         end
@@ -573,12 +577,12 @@ function SIMPLE_SRF(
         runtime_postprocessing!(postprocess,iteration,iterations)
         
         if iteration%write_interval + signbit(write_interval) == 0  
-            U_temp = U    
+            update_Utemp!(U, U_temp, config)
             make_absolute_velocity!(U,  x0, rotaxis, omega, config)
-            # save_output(model, outputWriter, iteration, time, config)
+            ##save_output(model, outputWriter, iteration, time, config)
             save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
-            U = U_temp
-            # save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
+            save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
+            update_Utemp!(U_temp, U, config)
         end
 
     end # end for loop
@@ -648,10 +652,9 @@ function SIMPLE_MRF(
 
     xdir, ydir, zdir = XDir(), YDir(), ZDir()
 
-    omega = model.MRF.omega
-    rotaxis = model.MRF.rotaxis
-    x0 = model.MRF.x0
-    zones = model.MRF.zones
+    omega = model.REF_FRAME.omega
+    rotaxis = model.REF_FRAME.rotaxis
+    x0 = model.REF_FRAME.x0
 
     for iteration ∈ 1:iterations
         time = iteration
@@ -997,7 +1000,7 @@ function make_absolute_velocity!(U,  x0, rotaxis, omega, config)
     ndrange = length(cells)
     kernel! = _make_absolute_velocity!(_setup(backend, workgroup, ndrange)...)
     kernel!(U,  x0, rotaxis, omega, cells)
-
+    println("Velocity made absolute")
 end
 
 @kernel function _make_absolute_velocity!(U,  x0, rotaxis, omega, cells)
@@ -1005,7 +1008,7 @@ end
 
     Omega = omega*rotaxis
     r = cells[cID].centre - x0
-    U[cID] = U[cID] + Omega × r
+    U[cID] = U[cID] + (Omega × r)    # Beware the sign
 end
 
 # MRF functions ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1056,3 +1059,20 @@ end
     end
 end
 
+
+function update_Utemp!(U, U_temp, config)
+    (; hardware) = config
+    (; backend, workgroup) = hardware
+    mesh = U.mesh
+    cells = mesh.cells 
+
+    ndrange = length(cells)
+    kernel! = _update_Utemp!(_setup(backend, workgroup, ndrange)...)
+    kernel!(U, U_temp)
+end
+
+@kernel function _update_Utemp!(U, U_temp)
+    cID = @index(Global)
+
+    U_temp[cID] = U[cID]
+end
