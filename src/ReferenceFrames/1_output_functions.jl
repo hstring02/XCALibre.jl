@@ -3,7 +3,7 @@ export get_mesh_name
 export output_directory
 
 
-function save_output_polar(model::Physics{T,F,SO,M,Tu,E,D,BI}, outputWriter, iteration, time, config, x0, rotaxis
+function save_output_polar(model::Physics{T,F,SO,M,Tu,E,D,BI}, outputWriter, iteration, time, config, x0, rotaxis; mask=nothing
     ) where {T,F,SO,M,Tu,E,D,BI}
     U = model.momentum.U
     mesh = U.mesh
@@ -18,11 +18,20 @@ function save_output_polar(model::Physics{T,F,SO,M,Tu,E,D,BI}, outputWriter, ite
         Up.z.values[i] = U.z.values[i]
         Up.y.values[i] = -(U[i] ⋅ tang)
     end
-    args = (
-        ("U", model.momentum.U), 
-        ("Up", Up), 
-        ("p", model.momentum.p)
-    )
+    if !isnothing(mask)
+        args = (
+            ("U", model.momentum.U), 
+            ("Up", Up), 
+            ("p", model.momentum.p),
+            ("mask", mask)
+        )
+    else
+        args = (
+            ("U", model.momentum.U), 
+            ("Up", Up), 
+            ("p", model.momentum.p)
+        )
+    end
     write_results(iteration, time, model.domain, outputWriter, config.boundaries, args...)
 end
 

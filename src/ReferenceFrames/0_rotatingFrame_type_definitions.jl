@@ -5,13 +5,15 @@ struct REF_FRAME_values
     omega
     rotaxis
     x0
+    mask
 end
 
-REF_FRAME(type, omega, rotaxis, x0) = begin
+REF_FRAME(type, omega, rotaxis, x0, mask) = begin
     REF_FRAME_values(
         type,
         omega,
         rotaxis,
-        x0
+        x0,
+        mask
     )
 end

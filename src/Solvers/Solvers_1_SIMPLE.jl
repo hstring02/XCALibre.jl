@@ -655,11 +655,12 @@ function SIMPLE_MRF(
     omega = model.REF_FRAME.omega
     rotaxis = model.REF_FRAME.rotaxis
     x0 = model.REF_FRAME.x0
+    mask = model.REF_FRAME.mask
 
     for iteration ∈ 1:iterations
         time = iteration
 
-        update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
+        update_mrf_sources!(omegaU, U, x0, rotaxis, omega, mask, config)
 
         rx, ry, rz = solve_equation!(U_eqn, U, boundaries.U, solvers.U, xdir, ydir, zdir, config)
         
@@ -679,7 +680,7 @@ function SIMPLE_MRF(
 
         # new approach
         # flux!(mdotf, Uf, config)
-        flux_mrf!(mdotf, Uf, config, x0, rotaxis, omega)
+        flux_mrf!(mdotf, Uf, config, x0, rotaxis, omega, mask)
         div!(divHv, mdotf, config)
         
         # Pressure calculations
@@ -732,7 +733,7 @@ function SIMPLE_MRF(
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
                 #save_output(model, outputWriter, iteration, time, config)
-                save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
+                save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis, mask=mask)
                 save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
             end
             break
@@ -753,7 +754,7 @@ function SIMPLE_MRF(
         
         if iteration%write_interval + signbit(write_interval) == 0      
             #save_output(model, outputWriter, iteration, time, config)
-            save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis)
+            save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis, mask=mask)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
 
@@ -1013,7 +1014,7 @@ end
 
 # MRF functions ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
+function update_mrf_sources!(omegaU, U, x0, rotaxis, omega, mask, config)
     (; hardware) = config
     (; backend, workgroup) = hardware
     mesh = U.mesh
@@ -1021,28 +1022,28 @@ function update_mrf_sources!(omegaU, U, x0, rotaxis, omega, config)
 
     ndrange = length(cells)
     kernel! = _update_mrf_sources!(_setup(backend, workgroup, ndrange)...)
-    kernel!(omegaU, U, x0, rotaxis, omega, cells)
+    kernel!(omegaU, U, x0, rotaxis, omega, mask, cells)
 end
 
-@kernel function _update_mrf_sources!(omegaU, U, x0, rotaxis, omega, cells)
+@kernel function _update_mrf_sources!(omegaU, U, x0, rotaxis, omega, mask, cells)
     cID = @index(Global)
 
-    Omega = omega*rotaxis
+    Omega = omega*rotaxis*mask[cID]
     omegaU[cID] = Omega × U[cID]
 end
 
 
-function flux_mrf!(phif::FS, psif::FV, config, x0, rotaxis, omega) where {FS<:FaceScalarField,FV<:FaceVectorField}
+function flux_mrf!(phif::FS, psif::FV, config, x0, rotaxis, omega, mask) where {FS<:FaceScalarField,FV<:FaceVectorField}
     (; hardware) = config
     (; backend, workgroup) = hardware
 
     ndrange = length(phif)
     kernel! = _flux_mrf!(_setup(backend, workgroup, ndrange)...)
-    kernel!(phif, psif, x0, rotaxis, omega)
+    kernel!(phif, psif, x0, rotaxis, omega, mask)
     # # KernelAbstractions.synchronize(backend)
 end
 
-@kernel function _flux_mrf!(phif, psif, x0, rotaxis, omega)
+@kernel function _flux_mrf!(phif, psif, x0, rotaxis, omega, mask)
     i = @index(Global)
 
     @uniform begin
@@ -1051,11 +1052,18 @@ end
     end
 
     @inbounds begin
-        (; area, normal) = faces[i]
+        (; area, normal, ownerCells) = faces[i]
         Omega = omega*rotaxis
         r = faces[i].centre - x0
         Sf = area * normal
-        values[i] = (psif[i] ⋅ Sf) - (Omega × r ⋅ Sf)
+        if mask[ownerCells[1]] == 1
+            val = 1
+        elseif mask[ownerCells[2]] == 1
+            val = 1
+        else
+            val = 0
+        end
+        values[i] = (psif[i] ⋅ Sf) - ((Omega × r ⋅ Sf)*val)
     end
 end
 
