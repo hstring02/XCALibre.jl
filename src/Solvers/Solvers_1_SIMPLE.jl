@@ -429,10 +429,8 @@ function SIMPLE_MRF(
         # div!(divHv, Uf, config) 
 
         # new approach
-        # flux!(mdotf, Uf, config)
-
-        #flux_mrf!(mdotf, Uf, config, x0, rotaxis, omega, mask)
-        new_flux_mrf!(mdotf, Uf, config, reference_frames)
+        flux!(mdotf, Uf, config)
+        #new_flux_mrf!(mdotf, Uf, config, reference_frames)
 
         div!(divHv, mdotf, config)
         
@@ -485,8 +483,8 @@ function SIMPLE_MRF(
             finish!(progress)
             @info "Simulation converged in $iteration iterations!"
             if !signbit(write_interval)
-                #save_output(model, outputWriter, iteration, time, config)
-                save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis, mask=global_mask)
+                save_output(model, outputWriter, iteration, time, config)
+                #save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis, mask=global_mask)
                 save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
             end
             break
@@ -506,8 +504,8 @@ function SIMPLE_MRF(
         runtime_postprocessing!(postprocess,iteration,iterations)
         
         if iteration%write_interval + signbit(write_interval) == 0      
-            #save_output(model, outputWriter, iteration, time, config)
-            save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis, mask=global_mask)
+            save_output(model, outputWriter, iteration, time, config)
+            #save_output_polar(model, outputWriter, iteration, time, config, x0, rotaxis, mask=global_mask)
             save_postprocessing(postprocess,iteration,time,mesh,outputWriter,config.boundaries)
         end
 
