@@ -410,7 +410,7 @@ function SIMPLE_MRF(
         time = iteration
 
         #update_mrf_sources!(omegaU, U, x0, rotaxis, omega, mask, config)
-        new_update_mrf_sources!(omegaU, U, reference_frames, config)
+        #new_update_mrf_sources!(omegaU, U, reference_frames, config)
 
         rx, ry, rz = solve_equation!(U_eqn, U, boundaries.U, solvers.U, xdir, ydir, zdir, config)
         
@@ -429,8 +429,8 @@ function SIMPLE_MRF(
         # div!(divHv, Uf, config) 
 
         # new approach
-        flux!(mdotf, Uf, config)
-        #new_flux_mrf!(mdotf, Uf, config, reference_frames)
+        #flux!(mdotf, Uf, config)
+        new_flux_mrf!(mdotf, Uf, config, reference_frames)
 
         div!(divHv, mdotf, config)
         
